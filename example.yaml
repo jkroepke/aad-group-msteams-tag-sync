@@ -1,0 +1,18 @@
+# Schema
+# <TENANT_ID|TENANT_NAME>:
+#   <MS_TEAMS_ID|MS_TEAMS_NAME>:
+#     <MS_TEAMS_TEAM_TAG_NAME>:
+#       - <AAD GROUP ID>
+#       - <AAD GROUP ID>
+#     <MS_TEAMS_TEAM_TAG_NAME>:
+#       - <AAD GROUP ID>
+#       - <AAD GROUP ID>
+
+tenants:
+  - id: cloudeteer.de
+    teams:
+      - name: Cloudeteer
+        tags:
+          - name: OE
+            groups:
+              - 8f1b1b1b-1b1b-1b1b-1b1b-1b1b1b1b1b1b
