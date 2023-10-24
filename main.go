@@ -91,6 +91,7 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 
 				for _, graphApiTeamTag := range graphApiTeamTags.GetValue() {
 					if tag.DisplayName == *graphApiTeamTag.GetDisplayName() {
+						slog.Info(fmt.Sprintf("%s found. Skip creating.", tag.DisplayName))
 						tagID = *graphApiTeamTag.GetId()
 						break
 					}
