@@ -20,6 +20,7 @@ linters:
     - ireturn
     - goerr113
     - gomoddirectives
+    - wrapcheck
 
 issues:
   exclude-rules:

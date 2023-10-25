@@ -24,9 +24,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	var c configRoot
+	var config configRoot
 
-	err = yaml.Unmarshal(yamlFile, &c)
+	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -38,7 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = syncTeams(ctx, client, c)
+	err = syncTeams(ctx, client, config)
 	if err != nil {
 		slog.Error(GetOdataError(err).Error())
 		os.Exit(1)

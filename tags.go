@@ -10,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
+//nolint:gochecknoglobals
 var transitiveMembers = map[string]models.DirectoryObjectCollectionResponseable{}
 
 func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tag TagConfigStruct) error {
@@ -21,6 +22,7 @@ func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, te
 	for _, groupID := range tag.Groups {
 		if _, ok := transitiveMembers[groupID]; !ok {
 			slog.Info(fmt.Sprintf("get transitive members of groups %s", groupID))
+
 			transitiveMembers[groupID], err = client.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, nil)
 			if err != nil {
 				return err
@@ -66,6 +68,7 @@ func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, te
 	}
 
 	slog.Info(fmt.Sprintf("Finish sync of tag %s in teams %s", tag.Name, teamID))
+
 	return nil
 }
 
@@ -120,6 +123,7 @@ func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceCli
 
 		slog.Info(fmt.Sprintf("Adder user %s to tag %s in teams %s", targetUserID, tag.Name, teamID))
 	}
+
 	return nil
 }
 
@@ -168,5 +172,6 @@ func updateTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, 
 	requestBody.SetDescription(&tag.Description)
 
 	_, err := client.Teams().ByTeamId(teamID).Tags().ByTeamworkTagId(tagID).Patch(ctx, requestBody, nil)
+
 	return err
 }
