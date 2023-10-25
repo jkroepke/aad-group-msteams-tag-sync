@@ -4,11 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"gopkg.in/yaml.v3"
-	"log/slog"
-	"os"
 )
 
 func main() {

@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"log/slog"
 	"slices"
+
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tag TagConfigStruct, transitiveMembers map[string]models.DirectoryObjectCollectionResponseable) error {
@@ -74,10 +75,10 @@ func getTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceClie
 }
 
 func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tagID string, tag TagConfigStruct, tagMembers models.TeamworkTagMemberCollectionResponseable, targetUserIDs []string) error {
-	var tagUserIDs []string
+	tagUserIDs := make([]string, len(tagMembers.GetValue()))
 
-	for _, tagMember := range tagMembers.GetValue() {
-		tagUserIDs = append(tagUserIDs, *tagMember.GetUserId())
+	for i, tagMember := range tagMembers.GetValue() {
+		tagUserIDs[i] = *tagMember.GetUserId()
 
 		if slices.Contains(targetUserIDs, *tagMember.GetUserId()) {
 			continue

@@ -14,21 +14,22 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 	for _, team := range config.Teams {
 		var teamIDs []string
 
-		if team.ID != "" {
-			teamID, err := getTeamsByTeamId(ctx, client, team.ID)
+		switch {
+		case team.ID != "":
+			teamID, err := getTeamsByTeamID(ctx, client, team.ID)
 			if err != nil {
 				return err
 			}
 
 			teamIDs = append(teamIDs, teamID)
-		} else if team.Filter != "" {
+		case team.Filter != "":
 			teamID, err := getTeamsByFilter(ctx, client, team.Filter)
 			if err != nil {
 				return err
 			}
 
 			teamIDs = append(teamIDs, teamID...)
-		} else {
+		default:
 			return fmt.Errorf("neither 'id' nor 'filter' defined")
 		}
 
@@ -60,19 +61,20 @@ func getTeamsByFilter(ctx context.Context, client *msgraphsdk.GraphServiceClient
 		return nil, fmt.Errorf("no teams with filter '%s' found", filter)
 	}
 
-	var teamIDs []string
-	for _, team := range teams.GetValue() {
-		teamIDs = append(teamIDs, *team.GetId())
+	teamIDs := make([]string, len(teams.GetValue()))
+
+	for i, team := range teams.GetValue() {
+		teamIDs[i] = *team.GetId()
 	}
 
 	return teamIDs, nil
 }
 
-func getTeamsByTeamId(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string) (string, error) {
-	graphApiTeam, err := client.Teams().ByTeamId(teamID).Get(ctx, nil)
+func getTeamsByTeamID(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string) (string, error) {
+	team, err := client.Teams().ByTeamId(teamID).Get(ctx, nil)
 	if err != nil {
 		return "", err
 	}
 
-	return *graphApiTeam.GetId(), nil
+	return *team.GetId(), nil
 }

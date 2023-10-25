@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 )
 
