@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	graphteams "github.com/microsoftgraph/msgraph-sdk-go/teams"
 	"gopkg.in/yaml.v3"
 )
@@ -56,6 +58,8 @@ func authenticate() (*msgraphsdk.GraphServiceClient, error) {
 }
 
 func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, config configRoot) error {
+	transitiveMembers := map[string]models.DirectoryObjectCollectionResponseable{}
+
 	for _, team := range config.Teams {
 		var teamIDs []string
 
@@ -70,10 +74,6 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 			teamID, err := getTeamsByFilter(ctx, client, team.Filter)
 			if err != nil {
 				return err
-			}
-
-			if len(teamIDs) == 0 {
-				return fmt.Errorf("no teams found with filter '%s'", team.Filter)
 			}
 
 			teamIDs = append(teamIDs, teamID...)
@@ -99,19 +99,20 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 				}
 
 				var (
-					targetUserIDs     []string
-					tagUserIDs        []string
-					transitiveMembers models.DirectoryObjectCollectionResponseable
+					targetUserIDs []string
+					tagUserIDs    []string
 				)
 
 				for _, groupID := range tag.Groups {
-					slog.Info(fmt.Sprintf("get transitive members of groups %s", groupID))
-					transitiveMembers, err = client.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, nil)
-					if err != nil {
-						return err
+					if _, ok := transitiveMembers[groupID]; !ok {
+						slog.Info(fmt.Sprintf("get transitive members of groups %s", groupID))
+						transitiveMembers[groupID], err = client.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, nil)
+						if err != nil {
+							return err
+						}
 					}
 
-					for _, transitiveMember := range transitiveMembers.GetValue() {
+					for _, transitiveMember := range transitiveMembers[groupID].GetValue() {
 						targetUserIDs = append(targetUserIDs, *transitiveMember.GetId())
 					}
 				}
@@ -130,7 +131,10 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 
 					requestBody := models.NewTeamworkTag()
 					requestBody.SetDisplayName(&tag.Name)
+					requestBody.SetDescription(&tag.Description)
 					requestBody.SetMembers([]models.TeamworkTagMemberable{teamworkTagMember})
+
+					slog.Info(fmt.Sprintf("Adder user %s to tag %s in teams %s", targetUserIDs[0], tag.Name, teamID))
 
 					cratedTag, err := client.Teams().ByTeamId(teamID).Tags().Post(ctx, requestBody, nil)
 					if err != nil {
@@ -138,14 +142,17 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 					}
 
 					tagID = *cratedTag.GetId()
-				}
+				} else {
+					slog.Info(fmt.Sprintf("Updating tag %s in teams %s.", tag.Name, teamID))
 
-				requestBody := models.NewTeamworkTag()
-				requestBody.SetDescription(&tag.Description)
+					requestBody := models.NewTeamworkTag()
+					requestBody.SetDisplayName(&tag.Name)
+					requestBody.SetDescription(&tag.Description)
 
-				_, err = client.Teams().ByTeamId(teamID).Tags().ByTeamworkTagId(tagID).Patch(ctx, requestBody, nil)
-				if err != nil {
-					return err
+					_, err = client.Teams().ByTeamId(teamID).Tags().ByTeamworkTagId(tagID).Patch(ctx, requestBody, nil)
+					if err != nil {
+						return GetOdataError(err)
+					}
 				}
 
 				tagMembers, err := client.
@@ -237,4 +244,15 @@ func getTeamsByTeamId(ctx context.Context, client *msgraphsdk.GraphServiceClient
 	}
 
 	return *graphApiTeam.GetId(), nil
+}
+
+func GetOdataError(err error) error {
+	var typed *odataerrors.ODataError
+	if errors.As(err, &typed) {
+		if terr := typed.GetErrorEscaped(); terr != nil {
+			return fmt.Errorf("%w - %s: %s", err, *terr.GetCode(), *terr.GetMessage())
+		}
+	}
+
+	return err
 }
