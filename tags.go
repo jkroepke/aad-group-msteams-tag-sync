@@ -10,28 +10,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-//nolint:gochecknoglobals
-var transitiveMembers = map[string]models.DirectoryObjectCollectionResponseable{}
-
 func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tag TagConfigStruct) error {
-	var (
-		err           error
-		targetUserIDs []string
-	)
-
-	for _, groupID := range tag.Groups {
-		if _, ok := transitiveMembers[groupID]; !ok {
-			slog.Info(fmt.Sprintf("get transitive members of groups %s", groupID))
-
-			transitiveMembers[groupID], err = client.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, nil)
-			if err != nil {
-				return err
-			}
-		}
-
-		for _, transitiveMember := range transitiveMembers[groupID].GetValue() {
-			targetUserIDs = append(targetUserIDs, *transitiveMember.GetId())
-		}
+	targetUserIDs, err := getGroupMembers(ctx, client, tag.Groups)
+	if err != nil {
+		return err
 	}
 
 	if len(targetUserIDs) == 0 {
@@ -72,14 +54,14 @@ func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, te
 	return nil
 }
 
-func getTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tagID string) (models.TeamworkTagMemberCollectionResponseable, error) {
-	return client.
-		Teams().ByTeamId(teamID).
-		Tags().ByTeamworkTagId(tagID).
-		Members().Get(ctx, nil)
+func getTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tagID string,
+) (models.TeamworkTagMemberCollectionResponseable, error) {
+	return client.Teams().ByTeamId(teamID).Tags().ByTeamworkTagId(tagID).Members().Get(ctx, nil)
 }
 
-func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tagID string, tag TagConfigStruct, tagMembers models.TeamworkTagMemberCollectionResponseable, targetUserIDs []string) error {
+func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tagID string, tag TagConfigStruct,
+	tagMembers models.TeamworkTagMemberCollectionResponseable, targetUserIDs []string,
+) error {
 	tagUserIDs := make([]string, len(tagMembers.GetValue()))
 
 	for i, tagMember := range tagMembers.GetValue() {
@@ -94,7 +76,6 @@ func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceCli
 			Tags().ByTeamworkTagId(tagID).
 			Members().ByTeamworkTagMemberId(*tagMember.GetId()).
 			Delete(ctx, nil)
-
 		if err != nil {
 			return err
 		}
@@ -116,7 +97,6 @@ func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceCli
 			Teams().ByTeamId(teamID).
 			Tags().ByTeamworkTagId(tagID).
 			Members().Post(ctx, requestBody, nil)
-
 		if err != nil {
 			return err
 		}
@@ -136,6 +116,7 @@ func findTeamsTagByDisplayName(ctx context.Context, client *msgraphsdk.GraphServ
 	for _, existingTag := range existingTags.GetValue() {
 		if tagDisplayName == *existingTag.GetDisplayName() {
 			slog.Info(fmt.Sprintf("Tag %s in teams %s found.", tagDisplayName, teamID))
+
 			return *existingTag.GetId(), nil
 		}
 	}

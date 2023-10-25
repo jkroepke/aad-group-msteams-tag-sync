@@ -1,17 +1,17 @@
 package main
 
 type configRoot struct {
-	Teams []teamConfigStruct `json:"teams"`
+	Teams []teamConfigStruct `yaml:"teams"`
 }
 
 type teamConfigStruct struct {
-	ID     string            `json:"id"`
-	Filter string            `json:"filter"`
-	Tags   []TagConfigStruct `json:"tags"`
+	ID     string            `yaml:"id"`
+	Filter string            `yaml:"filter"`
+	Tags   []TagConfigStruct `yaml:"tags"`
 }
 
 type TagConfigStruct struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Groups      []string `json:"groups"`
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description"`
+	Groups      []string `yaml:"groups"`
 }

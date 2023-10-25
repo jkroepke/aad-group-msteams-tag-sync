@@ -9,7 +9,7 @@ import (
 
 func GetOdataError(err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 
 	var typed *odataerrors.ODataError
