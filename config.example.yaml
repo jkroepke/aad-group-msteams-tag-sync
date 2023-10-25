@@ -1,0 +1,21 @@
+teams:
+  - id: ddb17b15-0ba5-4c0d-99d1-8f900067b90d
+    tags:
+      - name: devs
+        groups:
+          - ddb17b15-0ba5-4c0d-99d1-8f900067b90d
+
+  - filter: displayName eq 'General'
+    tags:
+      - name: devs
+        groups:
+          - ddb17b15-0ba5-4c0d-99d1-8f900067b90d
+
+  # This will match all teams that start with 'Project-'
+  # reference: https://learn.microsoft.com/en-us/graph/filter-query-parameter?tabs=http
+  - filter: startswith(displayName, 'Project-')
+    tags:
+      - name: devs
+        description: Project team
+        groups:
+          - ddb17b15-0ba5-4c0d-99d1-8f900067b90d
