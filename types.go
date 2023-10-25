@@ -7,10 +7,11 @@ type configRoot struct {
 type teamConfigStruct struct {
 	ID     string            `json:"id"`
 	Filter string            `json:"filter"`
-	Tags   []tagConfigStruct `json:"tags"`
+	Tags   []TagConfigStruct `json:"tags"`
 }
 
-type tagConfigStruct struct {
-	DisplayName string   `json:"displayName"`
+type TagConfigStruct struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
 	Groups      []string `json:"groups"`
 }

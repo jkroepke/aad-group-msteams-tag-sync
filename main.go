@@ -52,10 +52,7 @@ func authenticate() (*msgraphsdk.GraphServiceClient, error) {
 		return nil, fmt.Errorf("unable to create credential: %w", err)
 	}
 
-	return msgraphsdk.NewGraphServiceClientWithCredentials(cred, []string{
-		"GroupMember.Read.All",
-		"TeamworkTag.ReadWrite.All",
-	})
+	return msgraphsdk.NewGraphServiceClientWithCredentials(cred, []string{})
 }
 
 func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, config configRoot) error {
@@ -75,6 +72,10 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 				return err
 			}
 
+			if len(teamIDs) == 0 {
+				return fmt.Errorf("no teams found with filter '%s'", team.Filter)
+			}
+
 			teamIDs = append(teamIDs, teamID...)
 		} else {
 			return fmt.Errorf("neither 'id' nor 'filter' defined")
@@ -90,25 +91,11 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 				var tagID string
 
 				for _, graphApiTeamTag := range graphApiTeamTags.GetValue() {
-					if tag.DisplayName == *graphApiTeamTag.GetDisplayName() {
-						slog.Info(fmt.Sprintf("%s found. Skip creating.", tag.DisplayName))
+					if tag.Name == *graphApiTeamTag.GetDisplayName() {
+						slog.Info(fmt.Sprintf("Tag %s in teams %s found.", tag.Name, teamID))
 						tagID = *graphApiTeamTag.GetId()
 						break
 					}
-				}
-
-				if tagID == "" {
-					slog.Info(fmt.Sprintf("%s not found. Creating.", tag.DisplayName))
-
-					requestBody := models.NewTeamworkTag()
-					requestBody.SetDisplayName(&tag.DisplayName)
-
-					cratedTag, err := client.Teams().ByTeamId(teamID).Tags().Post(ctx, requestBody, nil)
-					if err != nil {
-						return err
-					}
-
-					tagID = *cratedTag.GetId()
 				}
 
 				var (
@@ -118,7 +105,7 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 				)
 
 				for _, groupID := range tag.Groups {
-					slog.Info("get transitive members of groups %s", groupID)
+					slog.Info(fmt.Sprintf("get transitive members of groups %s", groupID))
 					transitiveMembers, err = client.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, nil)
 					if err != nil {
 						return err
@@ -127,6 +114,38 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 					for _, transitiveMember := range transitiveMembers.GetValue() {
 						targetUserIDs = append(targetUserIDs, *transitiveMember.GetId())
 					}
+				}
+
+				if len(targetUserIDs) == 0 {
+					return fmt.Errorf("no users found for tag %s. Empty tags are not supported", tag.Name)
+				} else if len(targetUserIDs) > 25 {
+					return fmt.Errorf("more then 25 users found for tag %s. A MS Teams tag only support up to 25 members", tag.Name)
+				}
+
+				if tagID == "" {
+					slog.Info(fmt.Sprintf("Tag %s in teams %s not found. Creating.", tag.Name, teamID))
+
+					teamworkTagMember := models.NewTeamworkTagMember()
+					teamworkTagMember.SetUserId(&targetUserIDs[0])
+
+					requestBody := models.NewTeamworkTag()
+					requestBody.SetDisplayName(&tag.Name)
+					requestBody.SetMembers([]models.TeamworkTagMemberable{teamworkTagMember})
+
+					cratedTag, err := client.Teams().ByTeamId(teamID).Tags().Post(ctx, requestBody, nil)
+					if err != nil {
+						return err
+					}
+
+					tagID = *cratedTag.GetId()
+				}
+
+				requestBody := models.NewTeamworkTag()
+				requestBody.SetDescription(&tag.Description)
+
+				_, err = client.Teams().ByTeamId(teamID).Tags().ByTeamworkTagId(tagID).Patch(ctx, requestBody, nil)
+				if err != nil {
+					return err
 				}
 
 				tagMembers, err := client.
@@ -139,11 +158,11 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 				}
 
 				for _, tagMember := range tagMembers.GetValue() {
+					tagUserIDs = append(tagUserIDs, *tagMember.GetUserId())
+
 					if slices.Contains(targetUserIDs, *tagMember.GetUserId()) {
 						continue
 					}
-
-					tagUserIDs = append(tagUserIDs, *tagMember.GetUserId())
 
 					err = client.
 						Teams().ByTeamId(teamID).
@@ -155,7 +174,7 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 						return err
 					}
 
-					slog.Info("Removed user %s to tag %s in teams %s", *tagMember.GetUserId(), tagID, teamID)
+					slog.Info(fmt.Sprintf("Removed user %s to tag %s in teams %s", *tagMember.GetUserId(), tag.Name, teamID))
 				}
 
 				for _, targetUserID := range targetUserIDs {
@@ -175,8 +194,10 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 						return err
 					}
 
-					slog.Info("Adder user %s to tag %s in teams %s", targetUserID, tagID, teamID)
+					slog.Info(fmt.Sprintf("Adder user %s to tag %s in teams %s", targetUserID, tag.Name, teamID))
 				}
+
+				slog.Info(fmt.Sprintf("Finish sync of tag %s in teams %s", tag.Name, teamID))
 			}
 		}
 	}
