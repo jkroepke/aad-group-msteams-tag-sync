@@ -3,14 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	graphteams "github.com/microsoftgraph/msgraph-sdk-go/teams"
 )
 
 func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, config configRoot) error {
-	transitiveMembers := map[string]models.DirectoryObjectCollectionResponseable{}
-
 	for _, team := range config.Teams {
 		var teamIDs []string
 
@@ -35,7 +33,7 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 
 		for _, teamID := range teamIDs {
 			for _, tag := range team.Tags {
-				if err := syncTeamsTag(ctx, client, teamID, tag, transitiveMembers); err != nil {
+				if err := syncTeamsTag(ctx, client, teamID, tag); err != nil {
 					return err
 				}
 			}
@@ -44,6 +42,7 @@ func syncTeams(ctx context.Context, client *msgraphsdk.GraphServiceClient, confi
 
 	return nil
 }
+
 func getTeamsByFilter(ctx context.Context, client *msgraphsdk.GraphServiceClient, filter string) ([]string, error) {
 	configuration := &graphteams.TeamsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &graphteams.TeamsRequestBuilderGetQueryParameters{

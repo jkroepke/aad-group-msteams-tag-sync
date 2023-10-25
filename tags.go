@@ -10,7 +10,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tag TagConfigStruct, transitiveMembers map[string]models.DirectoryObjectCollectionResponseable) error {
+var transitiveMembers = map[string]models.DirectoryObjectCollectionResponseable{}
+
+func syncTeamsTag(ctx context.Context, client *msgraphsdk.GraphServiceClient, teamID string, tag TagConfigStruct) error {
 	var (
 		err           error
 		targetUserIDs []string
@@ -98,6 +100,8 @@ func syncTeamsTagMembers(ctx context.Context, client *msgraphsdk.GraphServiceCli
 	}
 
 	for _, targetUserID := range targetUserIDs {
+		targetUserID := targetUserID
+
 		if slices.Contains(tagUserIDs, targetUserID) {
 			continue
 		}

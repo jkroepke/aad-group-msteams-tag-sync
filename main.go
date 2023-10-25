@@ -23,7 +23,9 @@ func main() {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
+
 	var c configRoot
+
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
 		slog.Error(err.Error())
